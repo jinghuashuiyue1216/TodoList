@@ -2,9 +2,30 @@
   <div id="app">
     <div class="container">
      <div class="container-wrap">
-      <TodoHeader :addItem="addItem"></TodoHeader>
-      <TodoList :list="list" :checkItem="checkItem" :deleteItem="deleteItem" :updateItem="updateItem" ></TodoList>
-      <TodoFooter :list="list" :deleteAllItem="deleteAllItem" :selectAll="selectAll" :notSelectAll="notSelectAll"></TodoFooter>
+      <div class="header">
+        <h4 class="logo">今日待办：</h4>
+        <a-input type="text"  v-model="inputstr" @keydown.enter="add" placeholder="输入代办事项,按回车添加" />
+      </div>
+      <a-list size="small">
+          <a-list-item class="item" v-for="(item,index) in list" :key="index" >          
+           <div class="left">
+            <a-checkbox :checked="item.isdone" @click="handleClick(item)"></a-checkbox>
+            <div class="content">
+              <div @dblclick="updateIndex(item,index)" v-if="ifnum!=index">{{item.text}}</div>
+              <a-input type="text" v-if="ifnum==index" v-model="item.text" @blur="complete"/> 
+            </div>            
+           </div>
+           <a-popconfirm title="你确定要删除吗？" ok-text="Yes" cancel-text="No" @confirm="confirm(index)"> 
+            <a-button type="primary" danger >删除</a-button>
+           </a-popconfirm>
+          </a-list-item>
+      </a-list>
+      <div class="footer">
+        <h4>已完成({{yeslist}})/全部({{list.length}})</h4>
+        <!-- <a-popconfirm title="你确定要删除吗？" ok-text="Yes" cancel-text="No" @confirm="deleteAll"> 
+            <a-button type="primary" danger >清除所有已完成</a-button>
+        </a-popconfirm> -->
+      </div>
      </div>
     </div>
   </div>
@@ -12,63 +33,65 @@
 <script>
    import 'ant-design-vue/dist/antd';
    import { message } from 'ant-design-vue';
-   import TodoHeader from './components/TodoHeader.vue';
-   import TodoList from './components/TodoList.vue';
-   import TodoFooter from './components/TodoFooter.vue';
+import { del } from 'vue';
    export default{
     name: "app",
-    components:{
-    TodoHeader,
-    TodoList,
-    TodoFooter,
-},
     data() {
     return {
-      list: [],//由于这个数组三个组件都在用，所以放在App中，状态提升
+      list: [],
+      inputstr: "",
+      ifnum: -1,
+     // str: ""
     };
-  }, 
+  },
+  computed: {
+    yeslist() {  //计算已完成待办数量
+      let num = 0;
+      this.list.map(item => {
+        if (item.isdone) {
+          num++;
+        }
+      });
+      return num;
+    }
+  },
   methods: {
-    addItem(itemObj) {  //往数组的前方添加对象
-      this.list.unshift(itemObj);
+    add() {
+      this.list.unshift({  //添加一个待办对象到数组
+        text: this.inputstr,
+        isdone: false
+      });
+      this.inputstr = "";//不要忘了将该变量置为空
       this.save();
     },
-    checkItem(id) {  //拿到id遍历数组找到对应的对象修改状态
-      this.list.map((itemObj)=>{
-        if(itemObj.id==id) itemObj.isdone=!itemObj.isdone;
-      })
+    handleClick(item) {
+      item.isdone=!item.isdone;
+      this.save();
+      console.log(this.list)
+    },
+    updateIndex(item, index) {//双击以后隐藏span,显示input
+     // this.str = item.text;
+      this.ifnum = index;
       this.save();
     },
-    deleteItem(id){  //通过id删除对应的对象
-      console.log(id);
-      this.list=this.list.filter((itemObj)=>itemObj.id!=id);
-      this.save();
-    },
-    updateItem(id,text){  //拿到id遍历数组找到对应的对象修改内容
-      console.log(id);
-      this.list.map((itemObj)=>{
-        if(itemObj.id==id) item.text=text;
-      })
+    complete() {//修改完成后点击空白处，隐藏input,显示span
+      this.ifnum = -1;
       this.save();
     },
     save() {//执行添加、删除操作后也要用localstorage来存储到本地
       localStorage.list = JSON.stringify(this.list);
     },
-    deleteAllItem(){
-      this.list=this.list.filter((item)=>{return !item.isdone});
+    confirm(index){
+      this.list.splice(index, 1);
+      console.log(this.list);
       this.save();
       message.success('已删除');
     },
-    selectAll(){ //全选
-      this.list.map((itemObj)=>{
-        if(itemObj.isdone===false)
-        itemObj.isdone=true;
-        })
-    },
-    notSelectAll(){//全不选
-      this.list.map((itemObj)=>{
-        itemObj.isdone=false;
-     })
-    }
+    // deleteAll(e){
+    //   console.log(e);
+    //   this.save();
+    //   message.success('已删除');
+    // }
   },
   created() {//在created钩子函数中初始化json数据
     let list = localStorage.list;
@@ -126,7 +149,6 @@
   padding-right:5px;
   padding-top: 10px;
 }
-
 /* input{
   border: 1px solid #ccc;
   border-radius: 4px;
